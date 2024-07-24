@@ -7,7 +7,8 @@ from bs4 import BeautifulSoup
 import regex as re
 whole_df = pd.read_csv("archive\\2012-18_playerBoxScore.csv")
 #print(whole_df.describe())
-
+years = [2012, 2013, 2014, 2015, 2016, 2017, 2018]
+# Gets a player's stats in a given year.
 def getPlayerStats(df, firstName, lastName, teamAbbr, year):
     df['gmDate'] = pd.to_datetime(df['gmDate'])
     df['year'] = df['gmDate'].dt.year
@@ -15,6 +16,9 @@ def getPlayerStats(df, firstName, lastName, teamAbbr, year):
     #print(player_df)
     return player_df
 
+curry = getPlayerStats(whole_df, "Wardell", "Curry", "GS", years)
+
+# Getting the stats for all players of a certain position in a certain year.
 def getPositionStats(df, position, year):
     df['gmDate'] = pd.to_datetime(df['gmDate'])
     df['year'] = df['gmDate'].dt.year
@@ -22,13 +26,17 @@ def getPositionStats(df, position, year):
     #print(position_df)
     return position_df
 
+# Getting all players within a certain weight and height class of a certain year. 
 def getWeightHeightStats(df, weight, height, dw, dh, year):
     df['gmDate'] = pd.to_datetime(df['gmDate'])
     df['year'] = df['gmDate'].dt.year
-    wh_df = df.loc[(df['playWeight'].isin([weight-dw, weight+dw])) & (df['playHeight'].isin([height-dh, height+dh])) & (df["year"].isin(year))]
+    wh_df = df.loc[(df['playWeight'] >= weight - dw) & (df['playWeight'] <= weight + dw) & 
+                   (df['playHeight'] >= height - dh) & (df['playHeight'] <= height + dh) & 
+                   (df['year'].isin(year))]
     #print(wh_df)
     return wh_df
 
+# Getting an attribute for all players in a dataframe per minute
 def getAttrPerMin(df, attr):
     df['fullName'] = df['playFNm'] + ' ' + df['playLNm']
     df['attrPerMin'] = df[attr] / df['playMin']
@@ -36,6 +44,7 @@ def getAttrPerMin(df, attr):
     #print(attribute)
     return grouped_df
 
+# Getting an attribute for all players in a dataframe per game
 def getAttrPerGame(df, attr):
     df['fullName'] = df['playFNm'] + ' ' + df['playLNm']
     df['attrPerGame'] = df[attr]
@@ -73,42 +82,11 @@ def displayPerMinute(df1, df2, attribute, title, unit):
     plt.ylabel('Count')
     plt.title(title)
     plt.xticks(rotation=90)
-    plt.legend()
+    #plt.legend()
     plt.tight_layout()
     plt.show()
 
-'''
-teamRslt - win/loss
-playMin - minutes played
-playPos - player position
-playHeight - height
-playWeight - weight
-playBDate - birthday
-playPTS
-playAST
-playTO
-playSTL
-playBLK
-playPF
-playFGA
-playFGM
-playFG%
-play2PA
-play2PM
-play2P%
-play3PA
-play3PM
-play3p%
-playFTA
-playFTM
-playFT%
-playORB
-playDRB
-playTRB
-'''
-### COMPARING TO OTHER PGs ###
-curry = getPlayerStats(whole_df, "Wardell", "Curry", "GS", [2015])
-
+# Displaying charts for similar point guards
 def pgCompare(years):
     pg = getPositionStats(whole_df,"PG", years)
     # Getting the points per game in the 2015 season--------------------------------
@@ -146,12 +124,14 @@ def pgCompare(years):
     displayPerMinute(curry, pg, "playORB", "Curry vs Point Guards, 2015, ORB Per Min", "min")
     displayPerMinute(curry, pg, "playDRB", "Curry vs Point Guards, 2015, DRB Per Min", "min")
     displayPerMinute(curry, pg, "playTRB", "Curry vs Point Guards, 2015, TRB Per Min", "min")
-pgCompare([2015])
 
-### COMPARING TO SIMILAR WEIGHT/HEIGHT ###
-
+# Displaying charts for similar physical builds
 def whCompare(years):
-    wh_df = getWeightHeightStats(whole_df,185, 75, 5, 2, years)
+    sd_height = whole_df["playHeight"].std()
+    sd_weight = whole_df["playWeight"].std()
+    #print(sd_height, sd_weight)
+    # Getting the players who are within 1 standard deviation of Curry's height and weight. 
+    wh_df = getWeightHeightStats(whole_df,185, 75, sd_weight, sd_height, years)
     # Getting the points per game in the 2015 season--------------------------------
     displayPerMinute(curry, wh_df, "playPTS", "Curry vs Similar Builds, 2015, Points Per Min", "min")
     # Getting the assists per game in the 2015 season--------------------------------
@@ -187,9 +167,8 @@ def whCompare(years):
     displayPerMinute(curry, wh_df, "playORB", "Curry vs Similar Builds, 2015, ORB Per Min", "min")
     displayPerMinute(curry, wh_df, "playDRB", "Curry vs Similar Builds, 2015, DRB Per Min", "min")
     displayPerMinute(curry, wh_df, "playTRB", "Curry vs Similar Builds, 2015, TRB Per Min", "min")
-#whCompare([2015])
 
-### COMPARING TO OTHER ALL STARS OF THE YEAR
+# Fetches all all-star data for a certain year
 def getAllStars(year):
     url = f'https://www.basketball-reference.com/leagues/NBA_{year}.html#all_all_star_game_rosters'
     
@@ -216,7 +195,7 @@ def getAllStars(year):
             allStars.append(ele)
     return allStars
 
-
+# Displaying charts for all all stars
 def compareAllStars(df2):
     # Getting the points per game in the 2015 season--------------------------------
     displayPerMinute(curry, df2, "playPTS", "Curry vs All Stars, 2015, Points Per Min", "min")
@@ -254,6 +233,7 @@ def compareAllStars(df2):
     displayPerMinute(curry, df2, "playDRB", "Curry vs All Stars, 2015, DRB Per Min", "min")
     displayPerMinute(curry, df2, "playTRB", "Curry vs All Stars, 2015, TRB Per Min", "min")
 
+# Gets all the all-stars between a range of years
 def getStars(years):
     list_of_stars = []
     for year in years:
@@ -277,7 +257,13 @@ def getStars(years):
     print(all_star_df)
     return all_star_df
 
-#all_stars = getStars([2017, 2018])
-#compareAllStars(all_stars)
 
-### INTERACTIVE VERSION ON WEB ###
+### COMPARING TO SIMILAR WEIGHT/HEIGHT ###
+whCompare([2015])
+
+### COMPARING TO OTHER PGs ###
+pgCompare([2015])
+
+### COMPARING TO OTHER ALL STARS OF THE YEAR
+all_stars = getStars([2017, 2018])
+compareAllStars(all_stars)

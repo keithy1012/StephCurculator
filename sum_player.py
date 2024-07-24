@@ -1,8 +1,6 @@
 import pandas as pd
-import matplotlib.pyplot as plt
-from bs4 import BeautifulSoup
-import regex as re
 
+# Aggregates a player's stats by month and year. 
 whole_df = pd.read_csv("archive\\2012-18_playerBoxScore.csv")
 whole_df["year"] = whole_df["gmDate"].str.slice(0, 4)
 whole_df["month"] = whole_df["gmDate"].str.slice(5, 7)
@@ -28,6 +26,7 @@ def agg_stats (df):
                              "play2PM", "play3PA", "play3PM", "playFTA", "playFTM"]
     print(aggregated_df)
     return aggregated_df
+
 aggregated_data = agg_stats(whole_df)
 
 aggregated_data.to_csv("aggregated_data_by_year.csv")
