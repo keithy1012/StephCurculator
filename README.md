@@ -9,3 +9,6 @@ Comparison between Steph Curry and other points guards, other players with a sim
 
 ### `python sum_player.py`
 Creates a .csv file that aggregates a player's stats by month and year. 
+
+### View the PowerBI Visualization here:
+[PowerBI](visual.pdf)
