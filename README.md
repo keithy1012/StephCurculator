@@ -13,5 +13,5 @@ Creates a .csv file that aggregates a player's stats by month and year.
 ### View the PowerBI Visualization for player comparisons here:
 [PowerBI](visual.pdf)
 
-### 'python team_change.py'
+### `python team_change.py`
 Utilizes multiple machine learning algorithms for predictions, classifications, clustering, simulations, and time-series analysis. 
