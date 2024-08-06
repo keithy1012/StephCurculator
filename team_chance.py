@@ -10,7 +10,7 @@ from sklearn import metrics
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import mean_squared_error, r2_score
-
+import xgboost as xgb
 df = pd.read_csv("archive\\2012-18_teamBoxScore.csv")
 
 #print(df.head)
@@ -145,17 +145,17 @@ def DecisionTree(X_whole, y_whole, test_size, random_state):
     model = abc.fit(X_train, y_train)
     y_pred = model.predict(X_test)
     print("Adaboost Accuracy:",metrics.accuracy_score(y_test, y_pred))
-# 95.12% accuracy boosted to 96.74%
+# 95.12% accuracy boosted to 96.74% with Adaboost
 # DecisionTree(stats, result, 0.25, 16)
 
 
 '''
-Score Prediction: Predict the total score using regression algorithms like linear regression, ridge regression, or more advanced techniques like XGBoost.
+Score Prediction: Predict the total score using regression algorithms.
 ''' 
 # Returns a list of statistics and a list of scores corresponding to each statistic. 
 def data_by_game(team_name, years):
     stats = []
-    result = [] # 1 is win, 0 is loss
+    result = [] # scores
     for index, row in df.iterrows():
         if (row["year"] in years and team_name == row["teamAbbr"]):
             game_record = [
@@ -186,8 +186,9 @@ def data_by_game(team_name, years):
             stats.append(game_record)
             result.append(row["teamPTS"])
     return stats, result
-
 stats, result = data_by_game('GS', [2012, 2013, 2014, 2015, 2016])
+
+#------------------Linear Regression---------------------------------------------------------
 def LinRegression(X_whole, y_whole, test_size, random_state):
     X_train, X_test, y_train, y_test = train_test_split(X_whole, y_whole, test_size=test_size, random_state = random_state)
     linreg = LinearRegression()
@@ -199,8 +200,58 @@ def LinRegression(X_whole, y_whole, test_size, random_state):
     print("Mean squared error: ", mse)
     r2 = r2_score(y_test, y_pred)
     print("Coefficient of determination: %.2f" % r2)
+    # High Scoring game
+    test_statistics = [[100, 0, 100, 100, 100, 50, 50, 1, 100, 100, 1, 10, 10, 1, 100, 100, 1, 50, 50, 100, 200, 200, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,0,0,0,0,0,0,0,0, 0]]
+    score = linreg.predict(test_statistics)
+    print(score)
+    # Low Scoring Game
+    test_statistics = [[2, 50, 1, 2, 3, 25, 2, 0.04, 10 , 3, .3, 3, 2, .67, 3, 0, 0, 2, 2, 100, 34, 65, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,0,0,0,0,0,0,0,0, 0]]
+    score = linreg.predict(test_statistics)
+    print(score)
     
-LinRegression(stats, result, 0.25, 16)
+#LinRegression(stats, result, 0.25, 16)
+# RMSE: 1.5712
+#------------------XGBoost---------------------------------------------------------
+def XGBoost(X_whole, y_whole, test_size, random_state):
+    X_train, X_test, y_train, y_test = train_test_split(X_whole, y_whole, test_size=test_size, random_state = random_state)
+    dtrain = xgb.DMatrix(X_train, y_train)
+    dtest = xgb.DMatrix(X_test, y_test)
+    
+    params = {"objective": "reg:squarederror", "tree_method": "gpu_hist"}
+    generations = 1000
+    evals = [(dtest, "validation"), (dtrain, "train")]
+    model = xgb.train(params = params, dtrain = dtrain, num_boost_round = generations, evals = evals, verbose_eval = 50, early_stopping_rounds = 50)
+
+    predictions = model.predict(dtest)
+    rmse = mean_squared_error(y_test, predictions, squared=False)
+
+    print(f"RMSE of the XGBoost: {rmse:.3f}")
+
+XGBoost(stats, result, 0.25, 16)
+# RMSE score of 3.759 on testing data
+
+'''
+Clustering:
+
+Team Similarity: Group teams with similar performance metrics using clustering algorithms like K-means or hierarchical clustering. This can help identify teams with similar styles or strengths.
+'''
+
+'''
+Feature Importance and Analysis:
+
+Feature Analysis: Determine which features most influence game outcomes or team performance using feature importance techniques from models like random forests or gradient boosting.
+'''
+
+'''
+Time Series Analysis:
+
+Performance Trends: Analyze how team performance metrics change over time. You could use time series analysis methods or recurrent neural networks (RNNs) to capture temporal patterns and trends.
+'''
+'''
+Simulation and Scenario Analysis:
+
+Game Simulations: Use the data to simulate various game scenarios and outcomes to understand potential strategies or outcomes.
+'''
 
 # Getting the statistics for every team
 def get_team_stat(years):
@@ -245,27 +296,3 @@ def get_team_stat(years):
     print(team_data)
     return team_data
 #get_team_stat([2013])
-
-
-'''
-Clustering:
-
-Team Similarity: Group teams with similar performance metrics using clustering algorithms like K-means or hierarchical clustering. This can help identify teams with similar styles or strengths.
-'''
-
-'''
-Feature Importance and Analysis:
-
-Feature Analysis: Determine which features most influence game outcomes or team performance using feature importance techniques from models like random forests or gradient boosting.
-'''
-
-'''
-Time Series Analysis:
-
-Performance Trends: Analyze how team performance metrics change over time. You could use time series analysis methods or recurrent neural networks (RNNs) to capture temporal patterns and trends.
-'''
-'''
-Simulation and Scenario Analysis:
-
-Game Simulations: Use the data to simulate various game scenarios and outcomes to understand potential strategies or outcomes.
-'''
