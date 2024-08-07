@@ -8,15 +8,29 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn import metrics
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import StandardScaler
 import seaborn as sns
 from sklearn.metrics import mean_squared_error, r2_score
 import xgboost as xgb
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import SimpleRNN, Dense, Dropout
+features = [
+    "gmDate", "gmTime", "seasTyp", "teamPTS", "teamAST", "teamTO", "teamSTL",
+    "teamBLK", "teamPF", "teamFGA", "teamFG%", "team2PA", "team2PM", "team2P%",
+    "team3PA", "team3PM", "team3P%", "teamFTA", "teamFTM", "teamFT%", "teamORB",
+    "teamDRB", "teamTRB", "teamOrtg", "teamDrtg", "teamPlay%", "teamAST/TO", "teamSTL/TO",
+    "opptPTS", "opptAST", "opptTO", "opptSTL", "opptBLK", "opptPF", "opptFGA", "opptFG%",
+    "oppt2PA", "oppt2PM", "oppt2P%", "oppt3PA", "oppt3PM", "oppt3P%", "opptFTA", "opptFTM",
+    "opptFT%", "opptORB", "opptDRB", "opptTRB", "opptOrtg", "opptDrtg", "opptPlay%", "poss", "pace"
+]
+
 df = pd.read_csv("archive\\2012-18_teamBoxScore.csv")
 
 #print(df.head)
 df['gmDate'] = pd.to_datetime(df['gmDate'])
 df['year'] = df['gmDate'].dt.year
-
+df = df[features].dropna()
 nba_teams = {
     'ATL': 'Atlanta Hawks', 'BOS': 'Boston Celtics', 'BRK': 'Brooklyn Nets', 'CHA': 'Charlotte Hornets',
     'CHI': 'Chicago Bulls', 'CLE': 'Cleveland Cavaliers', 'DAL': 'Dallas Mavericks', 'DEN': 'Denver Nuggets',
@@ -33,11 +47,11 @@ nba_teams = {
 Game Outcome Prediction: Use features such as team statistics, opponent statistics, and game conditions to predict the outcome of a game (win/loss).
 '''
 # Returns the data averages for a certain team within a range of years and whether the team won or lost
-def data_by_game(team_name, years):
+def data_by_game_win_loss(team_name, years):
     stats = []
     result = [] # 1 is win, 0 is loss
     for index, row in df.iterrows():
-        if (row["year"] in years and team_name == row["teamAbbr"]):
+        if (row["year"] in years and row["teamAbbr"] in team_name):
             game_record = [
                 row["teamPTS"],
                 row["teamAST"],
@@ -71,7 +85,7 @@ def data_by_game(team_name, years):
             else:
                 result.append(0)
     return stats, result
-stats, result = data_by_game("GS", [i for i in range(2012, 2019)])
+#stats, result = data_by_game_win_loss(["GS"], [i for i in range(2012, 2019)])
 
 #------------------LOGISTIC REGRESSION-----------------------------------------------------------
 # Uses logistic regression to classify games as either "won" or "loss" based on 24 variables
@@ -153,7 +167,7 @@ def DecisionTree(X_whole, y_whole, test_size, random_state):
 Score Prediction: Predict the total score using regression algorithms.
 ''' 
 # Returns a list of statistics and a list of scores corresponding to each statistic. 
-def data_by_game(team_name, years):
+def data_by_game_scores(team_name, years):
     stats = []
     result = [] # scores
     for index, row in df.iterrows():
@@ -186,7 +200,7 @@ def data_by_game(team_name, years):
             stats.append(game_record)
             result.append(row["teamPTS"])
     return stats, result
-stats, result = data_by_game('GS', [2012, 2013, 2014, 2015, 2016])
+#stats, result = data_by_game_scores('GS', [2012, 2013, 2014, 2015, 2016])
 
 #------------------Linear Regression---------------------------------------------------------
 def LinRegression(X_whole, y_whole, test_size, random_state):
@@ -208,7 +222,8 @@ def LinRegression(X_whole, y_whole, test_size, random_state):
     test_statistics = [[2, 50, 1, 2, 3, 25, 2, 0.04, 10 , 3, .3, 3, 2, .67, 3, 0, 0, 2, 2, 100, 34, 65, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,0,0,0,0,0,0,0,0, 0]]
     score = linreg.predict(test_statistics)
     print(score)
-    
+    return linreg
+
 #LinRegression(stats, result, 0.25, 16)
 # RMSE: 1.5712
 #------------------XGBoost---------------------------------------------------------
@@ -227,26 +242,86 @@ def XGBoost(X_whole, y_whole, test_size, random_state):
 
     print(f"RMSE of the XGBoost: {rmse:.3f}")
 
-XGBoost(stats, result, 0.25, 16)
+#XGBoost(stats, result, 0.25, 16)
 # RMSE score of 3.759 on testing data
-
-'''
-Clustering:
-
-Team Similarity: Group teams with similar performance metrics using clustering algorithms like K-means or hierarchical clustering. This can help identify teams with similar styles or strengths.
-'''
 
 '''
 Feature Importance and Analysis:
 
-Feature Analysis: Determine which features most influence game outcomes or team performance using feature importance techniques from models like random forests or gradient boosting.
+Feature Analysis: Which features are the most important for teams to win a game?
 '''
+def feature_analysis():
+    stats, result = data_by_game_win_loss(nba_teams.keys(), [i for i in range(2012, 2019)])
+    log_model = LogRegression(stats, result, 0.25, 16, 2000)
+    coefficients = log_model.coef_
+    # 23 main variables (other 30 are for each team)
+    var_names = [
+        "teamPTS",
+        "teamAST",
+        "teamTO",
+        "teamSTL",
+        "teamBLK",
+        "teamPF",
+        "teamFGA",
+        "teamFGM",
+        "teamFG%",
+        "team2PA",
+        "team2PM",
+        "team2P%",
+        "team3PA",
+        "team3PM",
+        "team3P%",
+        "teamFTA",
+        "teamFTM",
+        "teamFT%",
+        "teamORB",
+        "teamDRB",
+        "teamTRB",
+        "teamOrtg",
+        "teamDrtg"
+    ]
+    attributes_dict = dict(zip(var_names, coefficients[0][0:23]))
+    #print(attributes_dict)
+    sorted_attributes_dict = dict(sorted(attributes_dict.items(), key=lambda item: item[1], reverse=True))
+    #print(sorted_attributes_dict)
+    for key, value in sorted_attributes_dict.items():
+        print(f"{key}: {value:.4f}")
+#feature_analysis()
 
 '''
 Time Series Analysis:
 
 Performance Trends: Analyze how team performance metrics change over time. You could use time series analysis methods or recurrent neural networks (RNNs) to capture temporal patterns and trends.
 '''
+
+data = pd.get_dummies(df, columns=["gmDate", "gmTime", "seasTyp"])
+
+scaler = StandardScaler()
+scaled_data = scaler.fit_transform(data)
+
+X = scaled_data
+y = data['teamPTS']
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train_rnn = X_train.reshape((X_train.shape[0], 1, X_train.shape[1]))
+X_test_rnn = X_test.reshape((X_test.shape[0], 1, X_test.shape[1]))
+
+# Build the RNN model
+model = Sequential()
+model.add(SimpleRNN(50, activation='relu', input_shape=(1, X_train.shape[1])))
+model.add(Dropout(0.2))
+model.add(Dense(1))
+
+# Compile the model
+model.compile(optimizer='adam', loss='mean_squared_error')
+
+# Train the model
+history = model.fit(X_train_rnn, y_train, epochs=20, batch_size=32, validation_split=0.1)
+
+# Evaluate the model
+loss = model.evaluate(X_test_rnn, y_test)
+print(f'Test loss: {loss}')
+
+
 '''
 Simulation and Scenario Analysis:
 
